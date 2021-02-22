@@ -1,15 +1,27 @@
 package com.github.jomof.dataflowgroveler
 
-import com.github.jomof.dataflowgroveler.MultipleAnnotationVisitor.Companion.multipleAnnotationVisitor
-import com.github.jomof.dataflowgroveler.MultipleFieldVisitor.Companion.multipleFieldVisitor
-import com.github.jomof.dataflowgroveler.MultipleMethodVisitor.Companion.multipleMethodVisitor
-import com.github.jomof.dataflowgroveler.MultipleModuleVisitor.Companion.multipleModuleVisitor
-import com.github.jomof.dataflowgroveler.MultipleRecordComponentVisitor.Companion.multipleRecordComponentVisitor
 import org.objectweb.asm.*
 
-class MultipleClassVisitor private constructor (
-    private val visitors : List<ClassVisitor>,
-    api : Int) : ClassVisitor(api) {
+class MultipleClassVisitor(
+    visitContext : VisitContext) :
+    ClassVisitor(visitContext.api),
+    IVisitMethod,
+    IClassHeader {
+    private val methodVisitor = MultipleMethodVisitor(this, visitContext)
+
+    override var classVersion: Int = 0
+    override var classAccess: Int = 0
+    override var className: String? = null
+    override var classSignature: String? = null
+    override var classSuperName: String? = null
+    override var classInterfaces: Array<out String>? = null
+
+    override var methodAccess: Int = 0
+    override var methodName: String? = null
+    override var methodDesc: String? = null
+    override var methodSignature: String? = null
+    override var methodExceptions: Array<out String>? = null
+    override val methodClass: IClassHeader = this
 
     override fun visit(
         version: Int,
@@ -17,111 +29,29 @@ class MultipleClassVisitor private constructor (
         name: String?,
         signature: String?,
         superName: String?,
-        interfaces: Array<String?>?
+        interfaces: Array<out String>?
     ) {
-        for(visitor in visitors){
-            visitor.visit(version, access, name, signature, superName, interfaces)
-        }
-    }
-
-    override fun visitSource(source: String?, debug: String?) {
-        for(visitor in visitors){
-            visitor.visitSource(source, debug)
-        }
-    }
-
-    override fun visitModule(name: String?, access: Int, version: String?): ModuleVisitor? {
-        return multipleModuleVisitor(visitors.map{ it.visitModule(name, access, version) }, api)
-    }
-
-    override fun visitNestHost(nestHost: String?) {
-        for(visitor in visitors){
-            visitor.visitNestHost(nestHost)
-        }
-    }
-
-    override fun visitOuterClass(owner: String?, name: String?, descriptor: String?) {
-        for(visitor in visitors){
-            visitor.visitOuterClass(owner, name, descriptor)
-        }
-    }
-
-    override fun visitAnnotation(descriptor: String?, visible: Boolean): AnnotationVisitor? {
-        return multipleAnnotationVisitor(visitors.map{ it.visitAnnotation(descriptor, visible) }, api)
-    }
-
-    override fun visitTypeAnnotation(
-        typeRef: Int, typePath: TypePath?, descriptor: String?, visible: Boolean
-    ): AnnotationVisitor? {
-        return multipleAnnotationVisitor(visitors.map{ it.visitTypeAnnotation(typeRef, typePath, descriptor, visible) }, api)
-    }
-
-    override fun visitAttribute(attribute: Attribute?) {
-        for(visitor in visitors){
-            visitor.visitAttribute(attribute)
-        }
-    }
-
-    override fun visitNestMember(nestMember: String?) {
-        for(visitor in visitors){
-            visitor.visitNestMember(nestMember)
-        }
-    }
-
-    override fun visitPermittedSubclass(permittedSubclass: String?) {
-        for(visitor in visitors){
-            visitor.visitPermittedSubclass(permittedSubclass)
-        }
-    }
-
-    override fun visitInnerClass(
-        name: String?, outerName: String?, innerName: String?, access: Int
-    ) {
-        for(visitor in visitors){
-            visitor.visitInnerClass(name, outerName, innerName, access)
-        }
-    }
-
-    override fun visitRecordComponent(
-        name: String?, descriptor: String?, signature: String?
-    ): RecordComponentVisitor? {
-        return multipleRecordComponentVisitor(visitors.map { it.visitRecordComponent(name, descriptor, signature) }, api)
-    }
-
-    override fun visitField(
-        access: Int,
-        name: String?,
-        descriptor: String?,
-        signature: String?,
-        value: Any?
-    ): FieldVisitor? {
-        return multipleFieldVisitor(visitors.map{ it.visitField(access, name, descriptor, signature, value) }, api)
+        classVersion = version
+        classAccess = access
+        className = name
+        classSignature = signature
+        classSuperName = superName
+        classInterfaces = interfaces
+        super.visit(version, access, name, signature, superName, interfaces)
     }
 
     override fun visitMethod(
         access: Int,
         name: String?,
-        descriptor: String?,
+        desc: String?,
         signature: String?,
-        exceptions: Array<String?>?
-    ): MethodVisitor? {
-        return multipleMethodVisitor(visitors.map{ it.visitMethod(access, name, descriptor, signature, exceptions) }, api)
-    }
-
-    override fun visitEnd() {
-        for(visitor in visitors){
-            visitor.visitEnd()
-        }
-    }
-
-    companion object {
-        fun multipleClassVisitor(
-            visitors: List<ClassVisitor?>,
-            api: Int = Opcodes.ASM9
-        ): ClassVisitor? {
-            val filtered = visitors.filterNotNull()
-            return if (filtered.isEmpty()) null
-            else MultipleClassVisitor(filtered, api)
-        }
+        exceptions: Array<out String>?
+    ): MethodVisitor {
+        this.methodAccess = access
+        this.methodName = name
+        this.methodDesc = desc
+        this.methodSignature = signature
+        this.methodExceptions = exceptions
+        return methodVisitor
     }
 }
